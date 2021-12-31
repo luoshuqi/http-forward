@@ -48,8 +48,7 @@ impl Display for HeaderTooLarge {
 impl std::error::Error for HeaderTooLarge {}
 
 pub struct ParseResult {
-    pub buf: Vec<u8>,
-    // 已读取的数据
+    pub buf: Vec<u8>,   // 已读取的数据
     pub domain: String, // 域名
 }
 
