@@ -1,7 +1,7 @@
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use log::{debug, error, info, warn};
 use md5::{Digest, Md5};
@@ -162,11 +162,15 @@ async fn handle_register(
 ) -> crate::Result<()> {
     let mut tx = shared.client.add(domains.to_vec());
     let mut receiver = Receiver::new();
+    let mut ping_at = Instant::now();
     loop {
         tokio::select! {
             msg = receiver.recv(&mut stream) => {
                 match msg? {
-                    Some(Protocol::Ping) => Protocol::Pong.send(&mut stream).await.map_err(err!())?,
+                    Some(Protocol::Ping) => {
+                        ping_at = Instant::now();
+                        Protocol::Pong.send(&mut stream).await.map_err(err!())?;
+                    }
                     Some(msg) => warn!("unexpected msg {:?} from {}", msg, addr),
                     None => break,
                 }
@@ -175,6 +179,12 @@ async fn handle_register(
                 match msg {
                     Some(req) => Protocol::Request(req).send(&mut stream).await?,
                     None => {}
+                }
+            }
+            _ = sleep(Duration::from_secs(60)) => {
+                if ping_at.elapsed() > Duration::from_secs(300) {
+                    info!("{} inactive for more than 300 seconds", addr);
+                    break;
                 }
             }
         }
