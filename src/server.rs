@@ -93,13 +93,13 @@ pub async fn run() -> crate::Result<()> {
 
 async fn handle_client_accept(
     accept: io::Result<(TcpStream, SocketAddr)>,
-    acceptor: &Arc<TlsAcceptor>,
+    acceptor: &TlsAcceptor,
     shared: &Shared,
 ) {
     match accept {
         Ok((stream, addr)) => {
             debug!("client connection from {}", addr);
-            let acceptor = Arc::clone(acceptor);
+            let acceptor = acceptor.clone();
             let shared = shared.clone();
             tokio::spawn(async move {
                 if let Err(e) = handle_client(stream, addr, acceptor, shared).await {
@@ -114,7 +114,7 @@ async fn handle_client_accept(
 async fn handle_client(
     stream: TcpStream,
     addr: SocketAddr,
-    acceptor: Arc<TlsAcceptor>,
+    acceptor: TlsAcceptor,
     shared: Shared,
 ) -> crate::Result<()> {
     let mut stream = acceptor
@@ -196,13 +196,13 @@ async fn handle_register(
 
 async fn handle_http_accept(
     accept: io::Result<(TcpStream, SocketAddr)>,
-    acceptor: &Arc<TlsAcceptor>,
+    acceptor: &TlsAcceptor,
     shared: &Shared,
 ) {
     match accept {
         Ok((stream, addr)) => {
             debug!("http connection from {}", addr);
-            let acceptor = Arc::clone(acceptor);
+            let acceptor = acceptor.clone();
             let shared = shared.clone();
             tokio::spawn(async move {
                 match handle_http(stream, addr, acceptor, shared).await {
@@ -218,7 +218,7 @@ async fn handle_http_accept(
 async fn handle_http(
     stream: TcpStream,
     addr: SocketAddr,
-    acceptor: Arc<TlsAcceptor>,
+    acceptor: TlsAcceptor,
     shared: Shared,
 ) -> crate::Result<()> {
     let mut stream = acceptor
@@ -277,7 +277,7 @@ fn make_key(domain: &str) -> Vec<u8> {
     md5.finalize().to_vec()
 }
 
-fn create_client_acceptor(key: &str, cert: &str) -> crate::Result<Arc<TlsAcceptor>> {
+fn create_client_acceptor(key: &str, cert: &str) -> crate::Result<TlsAcceptor> {
     let key = load_key(key)?;
     let cert = load_certs(cert)?;
 
@@ -291,10 +291,10 @@ fn create_client_acceptor(key: &str, cert: &str) -> crate::Result<Arc<TlsAccepto
         .with_client_cert_verifier(verifier)
         .with_single_cert(cert, key)
         .map_err(err!())?;
-    Ok(Arc::new(TlsAcceptor::from(Arc::new(config))))
+    Ok(TlsAcceptor::from(Arc::new(config)))
 }
 
-fn create_http_acceptor(key: &str, cert: &str) -> crate::Result<Arc<TlsAcceptor>> {
+fn create_http_acceptor(key: &str, cert: &str) -> crate::Result<TlsAcceptor> {
     let key = load_key(key)?;
     let cert = load_certs(cert)?;
 
@@ -303,5 +303,5 @@ fn create_http_acceptor(key: &str, cert: &str) -> crate::Result<Arc<TlsAcceptor>
         .with_no_client_auth()
         .with_single_cert(cert, key)
         .map_err(err!())?;
-    Ok(Arc::new(TlsAcceptor::from(Arc::new(config))))
+    Ok(TlsAcceptor::from(Arc::new(config)))
 }
